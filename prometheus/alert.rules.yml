@@ -1,0 +1,67 @@
+groups:
+- name: alert.rules
+  rules:
+  - alert: InstanceDown
+    expr: up == 0
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      description: '{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 1 minute.'
+      summary: Instance {{ $labels.instance }} down
+  - alert: BandwidthInbound 
+    expr: irate(node_network_receive_bytes_total[5m])*8/1000000 > 70
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      description: '{{ $labels.instance }}({{ $labels.device }}) of job {{ $labels.job }} has critical inbound bandwidth 5 minutes.'
+      summary: Instance {{ $labels.instance }} has critical inbound bandwidth
+  - alert: BandwidthOutbound
+    expr: irate(node_network_transmit_bytes_total[5m])*8/1000000 > 70
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      description: '{{ $labels.instance }}({{ $labels.device }}) of job {{ $labels.job }} has critical outbound bandwidth 5 minutes.'
+      summary: Instance {{ $labels.instance }} has critical inbound bandwidth
+  - alert: DiskRead
+    expr: irate(node_disk_read_bytes_total[5m])/1000000 > 70
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      description: '{{ $labels.instance }}({{ $labels.device }}) of job {{ $labels.job }} has critical disk read 5 minutes.'
+      summary: Instance {{ $labels.instance }} has critical disk read
+  - alert: DiskWrite
+    expr: irate(node_disk_written_bytes_total[5m])/1000000 > 70
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      description: '{{ $labels.instance }}({{ $labels.device }}) of job {{ $labels.job }} has critical disk write 5 minutes.'
+      summary: Instance {{ $labels.instance }} has critical disk write
+  - alert: MemoryUtilization
+    expr: ((node_memory_MemAvailable_bytes * 100) / node_memory_MemTotal_bytes) < 10
+    for: 10m
+    labels:
+      severity: critical
+    annotations:
+      description: '{{ $labels.instance }} of job {{ $labels.job }} has critical memory utilization(above 90%) 10 minutes.'
+      summary: Instance {{ $labels.instance }} has critical memory utilization(above 90%)
+  - alert: DiskUtilization
+    expr: ((node_filesystem_avail_bytes{device!~'rootfs'} * 100) / node_filesystem_size_bytes{device!~'rootfs'}) < 10
+    for: 10m
+    labels:
+      severity: critical
+    annotations:
+      description: '{{ $labels.instance }} of job {{ $labels.job }} has critical disk utilization(above 90%) 10 minutes.'
+      summary: Instance {{ $labels.instance }} has critical disk utilization(above 90%)
+  - alert: CpuUsage
+    expr: ((sum by (instance)(irate(node_cpu_seconds_total{mode='idle'}[5m])) / (count by (instance)(count by (cpu,instance)(node_cpu_seconds_total)))) * 100) < 10
+    for: 10m
+    labels:
+      severity: critical
+    annotations:
+      description: '{{ $labels.instance }} of job {{ $labels.job }} has critical(above 90%) cpu usage 10 minutes.'
+      summary: Instance {{ $labels.instance }} has critical(above 90%) cpu usage
