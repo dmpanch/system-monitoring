@@ -1,0 +1,98 @@
+version: '3.2'
+
+volumes:
+    prometheus-data: {}
+    grafana-data: {}
+    ssl-certs: {}
+    
+services:
+    https-portal:
+        image: steveltn/https-portal:1
+        ports:
+            - '80:80'
+            - '443:443'
+        restart: always
+        environment:
+            STAGE: production
+            PROXY_READ_TIMEOUT: 3600
+            DOMAINS: 'monitoring.example.com -> http://grafana:3000,  login:password@prom.example.com -> http://prometheus:9090, login:password@alerts.monitoring.bas-ip.com -> http://alertmanager:9093'
+            CLIENT_MAX_BODY_SIZE: '100M'
+        volumes:
+            - ssl-certs:/var/lib/https-portal
+            - /var/run/docker.sock:/var/run/docker.sock:ro
+        networks:
+            - proxy
+            - internal
+    telegram-sender:
+        build: ./telegram-sender
+        ports:
+            - 9087:9087
+        networks:
+            - internal
+            - proxy
+    prometheus:
+        image: prom/prometheus:latest
+        volumes:
+            - ./prometheus:/etc/prometheus/
+            - prometheus-data:/prometheus
+        command:
+            - --config.file=/etc/prometheus/config.yml
+            - --storage.tsdb.path=/prometheus
+            - '--web.console.libraries=/etc/prometheus/console_libraries'
+            - '--web.console.templates=/etc/prometheus/consoles'
+            - '--storage.tsdb.retention.time=7d'
+            - '--web.enable-lifecycle'            
+        ports:
+            - 9090:9090
+        restart: always
+        networks:
+            - internal
+            - proxy
+    node-exporter:
+        image: prom/node-exporter
+        volumes:
+            - /proc:/host/proc:ro
+            - /sys:/host/sys:ro
+            - /:/rootfs:ro
+        command:
+            - --path.procfs=/host/proc
+            - --path.sysfs=/host/sys
+            - --collector.filesystem.ignored-mount-points
+            - ^/(sys|proc|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)
+        ports:
+            - 9100:9100
+        restart: always
+        networks:
+            - internal
+    alertmanager:
+        image: prom/alertmanager
+        ports:
+            - 9093:9093
+        volumes:
+            - ./alertmanager/:/etc/alertmanager/
+        restart: always
+        command:
+            - --config.file=/etc/alertmanager/config.yml
+            - --storage.path=/alertmanager
+        networks:
+            - internal
+        
+    grafana:
+        image: grafana/grafana
+        depends_on:
+            - prometheus
+        ports:
+            - 3000:3000
+        volumes:
+            - grafana-data:/var/lib/grafana
+            - ./grafana/provisioning/:/etc/grafana/provisioning/
+        restart: always
+        networks:
+            - internal
+            - proxy
+
+networks:
+  proxy:
+    external: true
+  internal:
+    internal: true
