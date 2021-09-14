@@ -1,6 +1,6 @@
 # System monitoring
 
-Promtheus + Alertmanager + Grafana + Telegram-bot
+Prometheus + Alertmanager + Grafana + Telegram-bot
 
 ##Usage
 
